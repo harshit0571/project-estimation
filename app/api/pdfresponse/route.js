@@ -1,52 +1,106 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
-import axios from "axios";
+import { saveProjectEstimate } from "@/firebase";
 
 const openai = new OpenAI({
-  apiKey: process.env.API_KEY,
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const POST = async (req, res) => {
-  if (req.method === "POST") {
-    const body = await req.json();
+export const POST = async (req) => {
+  const body = await req.json();
+  const { prompt, currentFields, correction } = body;
 
-    const apiKey = process.env.NEXT_PUBLIC_OPENAIKEY;
-    const apiUrl = "https://api.openai.com/v1/completions"; // Adjust the endpoint as needed
+  try {
+    // If there's a correction, use a different system prompt
+    const systemPrompt = correction
+      ? `You are a project estimation expert. Review and modify the existing estimate based on the correction request.
+         Current estimate: ${JSON.stringify(currentFields)}
+         Correction request: ${correction}
+         Modify the estimate while maintaining this JSON schema:
+         {
+           "title": "string",
+           "description": "string",
+           "modules": [
+             {
+               "name": "string",
+               "submodules": [
+                 {
+                   "name": "string",
+                   "time": "number (hours)",
+                   "description": "string"
+                 }
+               ]
+             }
+           ]
+         }`
+      : `You are a project estimation expert. Convert project descriptions into structured estimates with modules, timelines, and budgets. Always respond with valid JSON matching this schema:
+         {
+           "title": "string",
+           "description": "string",
+           "duration": "number (days)",
+           "team": {
+             "frontend": "number",
+             "backend": "number"
+           },
+           "budget": {
+             "total": "number",
+             "breakdown": {
+               "development": "number",
+               "testing": "number",
+               "deployment": "number"
+             }
+           },
+           "modules": [
+             {
+               "name": "string",
+               "submodules": [
+                 {
+                   "name": "string",
+                   "time": "number (hours)",
+                   "description": "string"
+                 }
+               ]
+             }
+           ]
+         }`;
 
-    try {
-      console.log(body.number);
-      const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "user",
-            content: `look at ${body.prompt} and use it to create key features for his application, create phases budgets and timelines for each feature`,
-          },
-        ],
-      });
-
-      const data = response.choices[0].message;
-      console.log(data);
-      return new NextResponse(JSON.stringify(data), {
-        status: 201,
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch (error) {
-      console.error(error);
-      return new NextResponse(
-        JSON.stringify({
-          error: "An error occurred while making the request to GPT-3.",
-        }),
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
         {
-          status: 500,
-          headers: { "Content-Type": "application/json" },
-        }
-      );
-    }
-  } else {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: correction
+            ? "Please update the estimate based on the correction request."
+            : `Convert this project pitch into a detailed project estimate: ${prompt}`,
+        },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const projectEstimate = JSON.parse(response.choices[0].message.content);
+
+    // Save to Firebase
+    const projectId = await saveProjectEstimate(projectEstimate);
+
+    // Add the projectId to the response
+    const responseWithId = {
+      ...projectEstimate,
+      id: projectId,
+    };
+
+    return new NextResponse(JSON.stringify(responseWithId), {
+      status: 201,
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    console.error(error);
     return new NextResponse(
       JSON.stringify({
-        error: "An error occurred while making the request to GPT-3.",
+        error: "Failed to process request",
       }),
       {
         status: 500,

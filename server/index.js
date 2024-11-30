@@ -10,7 +10,7 @@ app.use(
 );
 app.use("/", express.static("public"));
 app.use(fileUpload());
-app.listen(8081);
+app.listen(8082);
 app.post("/extract-text", (req, res) => {
   if (!req.files || Object.keys(req.files).length === 0) {
     return res.status(400).send("No files were uploaded.");

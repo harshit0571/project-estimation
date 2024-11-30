@@ -1,7 +1,10 @@
 "use client";
 
+import { addDoc, collection } from "firebase/firestore";
+
 import React from "react";
 import axios from "axios";
+import { db } from "@/firebase";
 import { useState } from "react";
 
 const page = () => {
@@ -26,6 +29,13 @@ const page = () => {
     }
   };
 
+  const submitData = async () => {
+    const docRef = await addDoc(collection(db, "users"), {
+      first: "Ada",
+      last: "Lovelace",
+      born: 1815,
+    });
+  };
   return (
     <div className="p-4">
       <div className="flex flex-col gap-4 max-w-md">
@@ -49,6 +59,8 @@ const page = () => {
             <p>{result}</p>
           </div>
         )}
+
+        <button onClick={submitData}>Submit Data</button>
       </div>
     </div>
   );
