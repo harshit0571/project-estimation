@@ -14,8 +14,7 @@ interface ProjectEstimate {
     days: number;
   };
   team: {
-    frontend: number;
-    backend: number;
+    developers: number;
     designers: number;
   };
   budget: {
@@ -41,8 +40,7 @@ interface ProjectReference {
   module_name: string;
   time_taken: number;
   team?: {
-    frontend: number;
-    backend: number;
+    developers: number;
     designers: number;
   };
 }
@@ -54,8 +52,7 @@ export default function PDFParsePage() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
 
   const [team, setTeam] = useState({
-    frontend: 0,
-    backend: 0,
+    developers: 0,
     designers: 0
   });
   const [duration, setDuration] = useState({
@@ -147,6 +144,8 @@ export default function PDFParsePage() {
     }
   };
 
+  
+
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-6">Project Estimator</h1>
@@ -157,22 +156,12 @@ export default function PDFParsePage() {
           <h3 className="font-semibold mb-4">Team Composition</h3>
           <div className="space-y-3">
             <div>
-              <label className="block text-sm mb-1">Frontend Developers</label>
+              <label className="block text-sm mb-1">Developers</label>
               <input
                 type="number"
                 min="0"
-                value={team.frontend}
-                onChange={(e) => setTeam({ ...team, frontend: parseInt(e.target.value) || 0 })}
-                className="w-full p-2 border rounded"
-              />
-            </div>
-            <div>
-              <label className="block text-sm mb-1">Backend Developers</label>
-              <input
-                type="number"
-                min="0"
-                value={team.backend}
-                onChange={(e) => setTeam({ ...team, backend: parseInt(e.target.value) || 0 })}
+                value={team.developers}
+                onChange={(e) => setTeam({ ...team, developers: parseInt(e.target.value) || 0 })}
                 className="w-full p-2 border rounded"
               />
             </div>
@@ -240,8 +229,7 @@ export default function PDFParsePage() {
             <div className="bg-blue-50 p-4 rounded-lg">
               <h3 className="font-semibold mb-2">Team Composition</h3>
               <ul className="space-y-1">
-                <li>Frontend Developers: {response.team.frontend}</li>
-                <li>Backend Developers: {response.team.backend}</li>
+                <li>Developers: {response.team.developers}</li>
                 <li>Designers: {response.team.designers}</li>
               </ul>
             </div>

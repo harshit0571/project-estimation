@@ -8,11 +8,26 @@ const openai = new OpenAI({
 });
 
 const calculateAdjustedTime = (originalTime, originalTeamSize, newTeamSize) => {
-  // More developers = less time, but with diminishing returns
-  // Using a scaling factor of 0.8 to account for communication overhead
-  const scalingFactor = 0.8;
+  if (!originalTime || !originalTeamSize || !newTeamSize) return 0;
+  if (originalTeamSize === newTeamSize) return originalTime;
+  
+  const scalingFactor = 0.7; // Reduced from 0.8 for more realistic scaling
   const teamRatio = originalTeamSize / newTeamSize;
-  return Math.round(originalTime * Math.pow(teamRatio, scalingFactor));
+  const adjustedTime = originalTime * Math.pow(teamRatio, scalingFactor);
+  
+  // Ensure the adjusted time doesn't go below a reasonable minimum
+  const minimumTime = originalTime * 0.3; // Never reduce time by more than 70%
+  return Math.round(Math.max(adjustedTime, minimumTime));
+};
+
+const calculateWeightedAverageTime = (similarReferences, category) => {
+  const relevantRefs = similarReferences.filter(ref => ref.category === category);
+  if (relevantRefs.length === 0) return null;
+
+  const totalWeight = relevantRefs.reduce((sum, ref) => sum + 1, 0);
+  const weightedSum = relevantRefs.reduce((sum, ref) => sum + ref.adjusted_time, 0);
+  
+  return Math.round(weightedSum / totalWeight);
 };
 
 const normalizeTimeByTeamSize = (time, originalTeam, currentTeam) => {
@@ -30,7 +45,7 @@ const convertDaysToHours = (days) => days * 8; // Assuming 8-hour workdays
 export const POST = async (req) => {
   const body = await req.json();
   const { prompt, currentFields, correction, team, duration } = body;
-  const totalDevs = team?.frontend + team?.backend + team?.designers || 0;
+  const totalDevs = team?.developers + team?.designers || 0;
   const totalHours = duration?.hours || (duration?.days * 8) || 0;
 
   try {
@@ -233,8 +248,8 @@ export const POST = async (req) => {
            "description": "string",
            "duration": "number (days)",
            "team": {
-             "frontend": "number",
-             "backend": "number"
+             "developers": "number",
+             "designers": "number"
            },
            "budget": {
              "total": "number",
@@ -292,8 +307,7 @@ export const POST = async (req) => {
     const enrichedProjectData = {
       ...projectEstimate,
       team: {
-        frontend: team?.frontend || 0,
-        backend: team?.backend || 0,
+        developers: team?.developers || 0,
         designers: team?.designers || 0
       },
       duration: {
@@ -305,53 +319,48 @@ export const POST = async (req) => {
     // Save to Firebase with the enriched data
     const projectId = await saveProjectEstimate(enrichedProjectData);
 
-    // Before returning, validate that total estimated hours match the input duration
-    const estimatedHours = projectEstimate.modules.reduce(
-      (total, module) =>
-        total +
-        module.submodules.reduce((subTotal, sub) => subTotal + sub.time, 0),
-      0
-    );
-
-    if (Math.abs(estimatedHours - totalHours) > totalHours * 0.1) {
-      // 10% tolerance
-      // Adjust times proportionally to match total duration
-      const scaleFactor = totalHours / estimatedHours;
-      projectEstimate.modules.forEach((module) => {
-        module.submodules.forEach((sub) => {
-          sub.time = Math.round(sub.time * scaleFactor);
-        });
-      });
-    }
-
-    // Add validation for reasonable time ranges based on team size
-    const validateTimeEstimate = (estimate, similarReferences) => {
-      const adjustedEstimates = similarReferences
-        .filter((ref) => ref.category === estimate.category)
-        .map((ref) => ref.adjusted_time);
-
-      if (adjustedEstimates.length > 0) {
-        const avgTime =
-          adjustedEstimates.reduce((a, b) => a + b, 0) /
-          adjustedEstimates.length;
-        const maxDeviation = 0.5; // 50% deviation allowed
-
-        if (Math.abs(estimate.time - avgTime) > avgTime * maxDeviation) {
-          return Math.round(avgTime);
-        }
-      }
-      return estimate.time;
-    };
-
-    // Validate and adjust the AI's estimates
+    // Before returning, validate and adjust time estimates
     if (projectEstimate.modules) {
+      const totalProjectHours = duration?.hours || (duration?.days * 8) || 0;
+      
       projectEstimate.modules.forEach((module) => {
         if (module.submodules) {
           module.submodules.forEach((sub) => {
-            sub.time = validateTimeEstimate(sub, flattenedReferences);
+            // Validate and adjust each submodule's time
+            sub.time = validateTimeEstimate(sub, flattenedReferences, totalProjectHours);
+            
+            // Update similar references with adjusted times
+            if (sub.similar_references) {
+              sub.similar_references.forEach(ref => {
+                const originalRef = flattenedReferences.find(r => 
+                  r.project_name === ref.project_name && 
+                  r.module_name === ref.module_name
+                );
+                if (originalRef) {
+                  ref.time_taken = originalRef.adjusted_time;
+                }
+              });
+            }
           });
         }
       });
+
+      // Final validation to ensure total hours match
+      const estimatedHours = projectEstimate.modules.reduce(
+        (total, module) =>
+          total +
+          module.submodules.reduce((subTotal, sub) => subTotal + sub.time, 0),
+        0
+      );
+
+      if (Math.abs(estimatedHours - totalProjectHours) > totalProjectHours * 0.1) {
+        const scaleFactor = totalProjectHours / estimatedHours;
+        projectEstimate.modules.forEach((module) => {
+          module.submodules.forEach((sub) => {
+            sub.time = Math.round(sub.time * scaleFactor);
+          });
+        });
+      }
     }
 
     return new NextResponse(JSON.stringify(enrichedProjectData), {
@@ -365,4 +374,25 @@ export const POST = async (req) => {
       { status: 500, headers: { "Content-Type": "application/json" } }
     );
   }
+};
+
+const validateTimeEstimate = (estimate, similarReferences, totalProjectHours) => {
+  if (!estimate.time) return 0;
+  
+  const weightedAverage = calculateWeightedAverageTime(similarReferences, estimate.category);
+  if (!weightedAverage) return estimate.time;
+
+  const maxDeviation = 0.5; // 50% deviation allowed
+  const minTime = weightedAverage * (1 - maxDeviation);
+  const maxTime = weightedAverage * (1 + maxDeviation);
+
+  // If the estimate is outside the acceptable range, bring it within bounds
+  if (estimate.time < minTime) return Math.round(minTime);
+  if (estimate.time > maxTime) return Math.round(maxTime);
+
+  // Ensure no single task takes more than 30% of total project time
+  const maxTaskTime = totalProjectHours * 0.3;
+  if (estimate.time > maxTaskTime) return Math.round(maxTaskTime);
+
+  return Math.round(estimate.time);
 };
