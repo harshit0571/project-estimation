@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import React from "react";
 import axios from "axios";
 import { useState } from "react";
@@ -69,6 +70,8 @@ const page = () => {
             <p>{result}</p>
           </div>
         )}
+
+        <Button>lokesh</Button>
       </div>
     </div>
   );
