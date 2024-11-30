@@ -23,11 +23,22 @@ export const POST = async (req) => {
            "modules": [
              {
                "name": "string",
+               "category": "string (e.g., 'authentication', 'data-management', 'ui-components', 'integration', 'infrastructure')",
+               "complexity": "string (low|medium|high)",
+               "reusability": "number (0-100 percentage)",
                "submodules": [
                  {
                    "name": "string",
+                   "category": "string",
                    "time": "number (hours)",
-                   "description": "string"
+                   "description": "string",
+                   "similar_references": [
+                     {
+                       "project_name": "string",
+                       "module_name": "string",
+                       "time_taken": "number (hours)"
+                     }
+                   ]
                  }
                ]
              }
@@ -53,11 +64,22 @@ export const POST = async (req) => {
            "modules": [
              {
                "name": "string",
+               "category": "string (e.g., 'authentication', 'data-management', 'ui-components', 'integration', 'infrastructure')",
+               "complexity": "string (low|medium|high)",
+               "reusability": "number (0-100 percentage)",
                "submodules": [
                  {
                    "name": "string",
+                   "category": "string",
                    "time": "number (hours)",
-                   "description": "string"
+                   "description": "string",
+                   "similar_references": [
+                     {
+                       "project_name": "string",
+                       "module_name": "string",
+                       "time_taken": "number (hours)"
+                     }
+                   ]
                  }
                ]
              }
