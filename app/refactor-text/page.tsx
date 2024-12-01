@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 
+import Header from "@/components/ui/header";
 import axios from "axios";
 
 const Page = () => {
@@ -34,6 +35,7 @@ const Page = () => {
         data: result.modules,
         duration: Number(duration) || 0,
       });
+      console.log(result.modules);
       console.log("Generated response:", response.data);
       setFinal(response.data);
     } catch (error) {
@@ -42,12 +44,14 @@ const Page = () => {
   };
 
   useEffect(() => {
-    if (result !== "") {
+    if (result !== null) {
       handleGenerate();
     }
   }, [result]);
   return (
     <div className="p-4">
+      <Header />
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <textarea
           value={input}

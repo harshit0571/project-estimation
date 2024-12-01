@@ -160,10 +160,18 @@ export const POST = async (req) => {
 
         // Extract titles from submodules into an array
         const titles = moduleData.module.submodule.map((sub) => sub.title);
+        const matchedTitles = [];
         const processedTitles = await Promise.all(
           titles.map(async (title) => {
             const processedTitle = title.toLowerCase().replace(/\s+/g, "");
             const dbResponse = await checkdb(processedTitle);
+
+            if (dbResponse.matches.length > 0) {
+              matchedTitles.push({
+                title: processedTitle,
+                matches: dbResponse.matches,
+              });
+            }
 
             return {
               originalTitle: title,
@@ -178,13 +186,23 @@ export const POST = async (req) => {
           name: moduleData.module.name,
           resources: moduleData.module.resources,
           titles: processedTitles,
+          matchedTitles,
         };
       })
     );
 
     // Update the response structure
     return new NextResponse(
-      JSON.stringify({ modules: processedModules }, null, 2),
+      JSON.stringify(
+        {
+          modules: processedModules,
+          matched: processedModules.reduce((acc, module) => {
+            return [...acc, ...module.matchedTitles];
+          }, []),
+        },
+        null,
+        2
+      ),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
