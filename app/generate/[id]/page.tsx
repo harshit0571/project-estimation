@@ -1,6 +1,6 @@
 "use client";
 
-import { addDoc, collection, doc, getDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc, updateDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -14,6 +14,7 @@ interface Project {
   budget: number;
   duration: number;
   createdAt: Date;
+  generatedData?: any;
 }
 
 export default function GeneratePage() {
@@ -29,7 +30,11 @@ export default function GeneratePage() {
         const projectSnap = await getDoc(projectRef);
 
         if (projectSnap.exists()) {
-          setProject(projectSnap.data() as Project);
+          const projectData = projectSnap.data() as Project;
+          setProject(projectData);
+          if (projectData.generatedData) {
+            setFinal(projectData.generatedData);
+          }
         }
       } catch (error) {
         console.error("Error fetching project:", error);
@@ -84,22 +89,15 @@ export default function GeneratePage() {
     try {
       if (!final || !id) return;
 
-      const submoduleCollectionRef = collection(db, "submodules");
+      const projectRef = doc(db, "projects", id as string);
+      await updateDoc(projectRef, {
+        generatedData: final,
+      });
 
-      // Save each module and its elements
-      for (const module of final.suggestions) {
-        await addDoc(submoduleCollectionRef, {
-          name: module.title.toLowerCase(),
-          processTitle: module.title.toLowerCase().replace(/\s+/g, ""),
-          duration: module.duration,
-          module_name: module.moduleName,
-        });
-      }
-
-      alert("Successfully saved all elements!");
+      alert("Successfully saved project data!");
     } catch (error) {
-      console.error("Error saving elements:", error);
-      alert("Error saving elements");
+      console.error("Error saving project data:", error);
+      alert("Error saving project data");
     }
   };
 
