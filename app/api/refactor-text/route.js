@@ -16,7 +16,7 @@ async function checkdb(title) {
       return {
         exists: false,
         matches: [],
-        error: "Name is required"
+        error: "Name is required",
       };
     }
 
@@ -44,7 +44,8 @@ async function checkdb(title) {
         messages: [
           {
             role: "system",
-            content: "You are a helpful assistant that generates similar names. Return exactly 25 names, separated by commas.",
+            content:
+              "You are a helpful assistant that generates similar names. Return exactly 25 names, separated by commas.",
           },
           {
             role: "user",
@@ -63,7 +64,7 @@ async function checkdb(title) {
         where("name", "in", suggestedNames)
       );
       const similarQuerySnapshot = await getDocs(similarQuery);
-      
+
       const similarMatches = [];
       similarQuerySnapshot.forEach((doc) => {
         similarMatches.push({
@@ -75,28 +76,29 @@ async function checkdb(title) {
 
       return {
         exists: true,
-        matches: [...exactMatches, ...similarMatches]
+        matches: [...exactMatches, ...similarMatches],
       };
     }
 
     return {
       exists: true,
-      matches: exactMatches
+      matches: exactMatches,
     };
-
   } catch (error) {
     console.error("Error checking database:", error);
     return {
       exists: false,
       matches: [],
-      error: error.message
+      error: error.message,
     };
   }
 }
 
 export const POST = async (req) => {
   const body = await req.json();
-  const { input } = body;
+  const { input, developers, designers } = body;
+  let { duration } = body;
+  duration = duration * 8; //   convert to hours
 
   try {
     const response = await openai.chat.completions.create({
@@ -106,28 +108,34 @@ export const POST = async (req) => {
           role: "system",
           content:
             "You are a text analyzer. Your task is to:" +
-            "1. Extract a single module and its submodules from the input text" +
+            "1. Extract all modules and its submodules from the input text in result array" +
             "2. Return a clean JSON object without any escape characters" +
             "3. The response should match this exact structure:" +
             JSON.stringify(
               {
-                result: {
-                  module: {
-                    name: "string",
-                    submodule: [
-                      {
-                        title: "string",
-                        description: "string",
+                result: [
+                  {
+                    module: {
+                      name: "string",
+                      submodule: [
+                        {
+                          title: "string",
+                          description: "string",
+                        },
+                      ],
+                      resources: {
+                        developers: 0,
+                        designers: 0,
+                        duration: 0,
                       },
-                    ],
+                    },
                   },
-                },
+                ],
               },
               null,
               2
             ) +
-            "4. Do not wrap the response in additional quotes or add escape characters" +
-            "5. Return only the first module if multiple are present",
+            "4. Do not wrap the response in additional quotes or add escape characters",
         },
         {
           role: "user",
@@ -140,28 +148,48 @@ export const POST = async (req) => {
     const parsedContent = JSON.parse(response.choices[0].message.content);
     const cleanedResponse = parsedContent.result || parsedContent;
 
-    // Extract titles from submodules into an array
-    const titles = cleanedResponse.module.submodule.map((sub) => sub.title);
-    const processedTitles = await Promise.all(
-      titles.map(async (title) => {
-        console.log(title);
-        const processedTitle = title.toLowerCase().replace(/\s+/g, "");
-        const dbResponse = await checkdb(processedTitle);
+    // Process each module in the array
+    const processedModules = await Promise.all(
+      cleanedResponse.map(async (moduleData) => {
+        // Add resources information to each module
+        moduleData.module.resources = {
+          developers,
+          designers,
+          duration,
+        };
+
+        // Extract titles from submodules into an array
+        const titles = moduleData.module.submodule.map((sub) => sub.title);
+        const processedTitles = await Promise.all(
+          titles.map(async (title) => {
+            const processedTitle = title.toLowerCase().replace(/\s+/g, "");
+            const dbResponse = await checkdb(processedTitle);
+
+            return {
+              originalTitle: title,
+              processedTitle: processedTitle,
+              exists: dbResponse.exists,
+              matches: dbResponse.matches,
+            };
+          })
+        );
 
         return {
-          originalTitle: title,
-          processedTitle: processedTitle,
-          exists: dbResponse.exists,
-          matches: dbResponse.matches,
+          name: moduleData.module.name,
+          resources: moduleData.module.resources,
+          titles: processedTitles,
         };
       })
     );
 
-    console.log(titles, processedTitles);
-    return new NextResponse(JSON.stringify(processedTitles, null, 2), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    // Update the response structure
+    return new NextResponse(
+      JSON.stringify({ modules: processedModules }, null, 2),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }
+    );
   } catch (error) {
     console.error(error);
     return new NextResponse(
