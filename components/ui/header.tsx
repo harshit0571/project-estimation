@@ -33,7 +33,7 @@ export default function Header() {
               className="inline-flex items-center px-4 py-2 bg-white text-blue-900
               rounded-lg shadow-md hover:bg-blue-50 transition-all duration-200
               font-medium text-sm gap-2 hover:shadow-lg"
-              onClick={() => router.push("/addproject")}
+              onClick={() => router.push("/add-project")}
             >
               <PlusCircle className="w-5 h-5" />
               Add Project

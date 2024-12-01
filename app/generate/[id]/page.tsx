@@ -114,57 +114,68 @@ export default function GeneratePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
-      <h1 className="text-2xl font-bold mb-4">
-        Generating Project: {project.name}
+    <div className="container mx-auto px-6 py-8 max-w-7xl">
+      <h1 className="text-3xl font-bold mb-8 text-gray-800">
+        Generating Project: <span className="text-blue-600">{project.name}</span>
       </h1>
 
-      <div className="bg-white rounded-lg shadow p-6 space-y-4">
-        <div>
-          <h2 className="font-semibold text-gray-700 mb-2">Description</h2>
-          <textarea
-            value={project.description}
-            readOnly
-            className="w-full px-3 py-2 text-gray-600 border rounded-lg min-h-[120px] bg-gray-50"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+      <div className="flex gap-8">
+        {/* Left Column - Generation Section */}
+        <div className="flex-1 bg-white rounded-xl shadow-lg p-8 space-y-6 max-w-2xl">
           <div>
-            <h2 className="font-semibold text-gray-700">Budget</h2>
-            <p className="text-gray-600">${project.budget}</p>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">Project Description</h2>
+            <textarea
+              value={project.description}
+              readOnly
+              className="w-full px-4 py-3 text-base text-gray-700 border rounded-lg min-h-[160px] bg-gray-50 font-medium"
+            />
           </div>
-          <div>
-            <h2 className="font-semibold text-gray-700">Duration</h2>
-            <p className="text-gray-600">{project.duration} days</p>
-          </div>
-        </div>
 
-        <button
-          onClick={handleSubmit}
-          className="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors"
-        >
-          Generate
-        </button>
-
-        {final && (
-          <>
-            <div className="mt-8">
-              <h2 className="font-semibold text-gray-700 mb-2">
-                Generated Data:
-              </h2>
-              <pre className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-[400px] text-sm">
-                {JSON.stringify(final, null, 2)}
-              </pre>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+              <h2 className="text-lg font-bold text-gray-800 mb-2">Budget</h2>
+              <p className="text-2xl font-bold text-blue-600">${project.budget}</p>
             </div>
+            <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
+              <h2 className="text-lg font-bold text-gray-800 mb-2">Duration</h2>
+              <p className="text-2xl font-bold text-blue-600">{project.duration} days</p>
+            </div>
+          </div>
 
-            <button
-              onClick={handleDone}
-              className="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors mb-4"
-            >
-              Done
-            </button>
+          <button
+            onClick={handleSubmit}
+            className="w-full bg-blue-600 text-white px-6 py-4 rounded-xl hover:bg-blue-700 
+              transition-colors font-bold text-lg shadow-md hover:shadow-lg"
+          >
+            Generate Project Plan
+          </button>
 
+          {final && (
+            <>
+              <div className="mt-8">
+                <h2 className="text-xl font-bold text-gray-800 mb-4">
+                  Generated Project Data:
+                </h2>
+                <pre className="bg-gray-50 p-6 rounded-xl overflow-auto max-h-[400px] text-base 
+                  border border-gray-200 font-medium text-gray-700 custom-scrollbar">
+                  {JSON.stringify(final, null, 2)}
+                </pre>
+              </div>
+
+              <button
+                onClick={handleDone}
+                className="w-full bg-green-600 text-white px-6 py-4 rounded-xl hover:bg-green-700 
+                  transition-colors font-bold text-lg shadow-md hover:shadow-lg"
+              >
+                Save Project Data
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Right Column - Project Chat */}
+        {final && (
+          <div className="flex-1 bg-white rounded-xl shadow-lg">
             <ProjectChat
               projectId={id as string}
               suggestions={final}
@@ -175,7 +186,7 @@ export default function GeneratePage() {
               }}
               onUpdateSuggestions={handleUpdateSuggestions}
             />
-          </>
+          </div>
         )}
       </div>
     </div>
