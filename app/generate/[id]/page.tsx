@@ -4,6 +4,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import ProjectChat from "@/app/components/ProjectChat";
 import axios from "axios";
 import { db } from "@/firebase";
 
@@ -50,7 +51,6 @@ export default function GeneratePage() {
         duration: Number(project?.duration) || 0,
       });
       setResult(response.data);
-      console.log(result.module);
     } catch (error) {
       console.error("Error:", error);
     }
@@ -74,6 +74,11 @@ export default function GeneratePage() {
       handleGenerate();
     }
   }, [result]);
+
+  const handleUpdateSuggestions = (newSuggestions: any) => {
+    setFinal(newSuggestions);
+    // setResult({ modules: newSuggestions });
+  };
 
   if (loading) {
     return (
@@ -122,14 +127,27 @@ export default function GeneratePage() {
         </button>
 
         {final && (
-          <div className="mt-8">
-            <h2 className="font-semibold text-gray-700 mb-2">
-              Generated Data:
-            </h2>
-            <pre className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-[400px] text-sm">
-              {JSON.stringify(final, null, 2)}
-            </pre>
-          </div>
+          <>
+            <div className="mt-8">
+              <h2 className="font-semibold text-gray-700 mb-2">
+                Generated Data:
+              </h2>
+              <pre className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-[400px] text-sm">
+                {JSON.stringify(final, null, 2)}
+              </pre>
+            </div>
+
+            <ProjectChat
+              projectId={id as string}
+              suggestions={final}
+              project={{
+                name: project.name,
+                description: project.description,
+                duration: project.duration,
+              }}
+              onUpdateSuggestions={handleUpdateSuggestions}
+            />
+          </>
         )}
       </div>
     </div>

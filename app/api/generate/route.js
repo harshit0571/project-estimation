@@ -20,7 +20,8 @@ export async function POST(req) {
 
     const modules = body.data;
     const titlesWithoutMatches = [];
-    let hoursLeft = body.duration*8;
+    let hoursLeft = body.duration * 8;
+    const existingTitles = [];
     console.log("Hours left 1:", hoursLeft);
     // Extract titles without matches
     modules.forEach((module) => {
@@ -36,6 +37,12 @@ export async function POST(req) {
           console.log("Hours Left 2: ", title.matches[0].duration);
           hoursLeft -= title.matches[0].duration;
           console.log("Hours Left 3: ", hoursLeft);
+          existingTitles.push({
+            moduleName: module.name,
+            title: title.originalTitle,
+            duration: title.matches[0].duration,
+            exists: true,
+          });
         }
       });
     });
@@ -45,7 +52,7 @@ export async function POST(req) {
 
     let totalHoursUsed = 0;
     const suggestions = [];
-    
+
     // Process items sequentially instead of using Promise.all to maintain control
     for (let i = 0; i < titlesWithoutMatches.length; i++) {
       const { moduleName, title } = titlesWithoutMatches[i];
@@ -74,27 +81,39 @@ export async function POST(req) {
       });
 
       const result = JSON.parse(completion.choices[0].message.content);
-      
+
       // Ensure we don't exceed remaining hours
       let duration = Math.min(result[0].duration, maxHoursPerItem);
-      
+
       // For the last item, use all remaining hours if needed
       if (i === titlesWithoutMatches.length - 1) {
         duration = remainingHours;
       }
 
       totalHoursUsed += duration;
-      
+
       suggestions.push({
         moduleName: result[0].moduleName,
         title: result[0].title,
-        duration: duration
+        duration: duration,
       });
 
-      console.log(`Item ${i + 1}/${titlesWithoutMatches.length}: Used ${duration} hours. Total used: ${totalHoursUsed}/${hoursLeft}`);
+      console.log(
+        `Item ${i + 1}/${
+          titlesWithoutMatches.length
+        }: Used ${duration} hours. Total used: ${totalHoursUsed}/${hoursLeft}`
+      );
     }
 
-    return NextResponse.json({ success: true, suggestions });
+    // Modify suggestions to include exists field
+    // suggestions.forEach((suggestion) => {
+    //   suggestion.exists = false;
+    // });
+
+    // Combine both arrays in the response
+    const allTitles = [...existingTitles, ...suggestions];
+
+    return NextResponse.json({ success: true, suggestions: allTitles });
   } catch (error) {
     console.error("Error processing request:", error);
     return NextResponse.json(
