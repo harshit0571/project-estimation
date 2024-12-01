@@ -38,8 +38,9 @@ Provide your response in the following JSON format:
   "explanation": "Your detailed explanation here",
   "updatedSuggestions": [array of corrected suggestions]
 }
-`;
+  Important: Do not modify the 'exists' property of existing suggestions. For any new suggestions you add, set 'exists' to false.
 
+`;
     const completion = await openai.chat.completions.create({
       messages: [{ role: "user", content: prompt }],
       model: "gpt-4-turbo-preview",
@@ -55,7 +56,20 @@ Provide your response in the following JSON format:
     // Parse the JSON response
     const parsedResponse = JSON.parse(response);
 
-    return NextResponse.json(parsedResponse, { status: 200 });
+    // Ensure 'exists' property of existing suggestions is not modified
+    const updatedSuggestions = parsedResponse.updatedSuggestions.map(
+      (suggestion, index) => {
+        if (suggestions[index] && suggestions[index].exists !== undefined) {
+          suggestion.exists = suggestions[index].exists;
+        }
+        return suggestion;
+      }
+    );
+
+    return NextResponse.json(
+      { ...parsedResponse, updatedSuggestions },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Error in chat-suggestions:", error);
     return NextResponse.json(

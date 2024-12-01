@@ -106,9 +106,9 @@ export async function POST(req) {
     }
 
     // Modify suggestions to include exists field
-    // suggestions.forEach((suggestion) => {
-    //   suggestion.exists = false;
-    // });
+    suggestions.forEach((suggestion) => {
+      suggestion.exists = false;
+    });
 
     // Combine both arrays in the response
     const allTitles = [...existingTitles, ...suggestions];

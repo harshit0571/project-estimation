@@ -1,6 +1,6 @@
 "use client";
 
-import { doc, getDoc } from "firebase/firestore";
+import { addDoc, collection, doc, getDoc } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -80,6 +80,29 @@ export default function GeneratePage() {
     // setResult({ modules: newSuggestions });
   };
 
+  const handleDone = async () => {
+    try {
+      if (!final || !id) return;
+
+      const submoduleCollectionRef = collection(db, "submodules");
+
+      // Save each module and its elements
+      for (const module of final.suggestions) {
+        await addDoc(submoduleCollectionRef, {
+          name: module.title.toLowerCase(),
+          processTitle: module.title.toLowerCase().replace(/\s+/g, ""),
+          duration: module.duration,
+          module_name: module.moduleName,
+        });
+      }
+
+      alert("Successfully saved all elements!");
+    } catch (error) {
+      console.error("Error saving elements:", error);
+      alert("Error saving elements");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -136,6 +159,13 @@ export default function GeneratePage() {
                 {JSON.stringify(final, null, 2)}
               </pre>
             </div>
+
+            <button
+              onClick={handleDone}
+              className="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors mb-4"
+            >
+              Done
+            </button>
 
             <ProjectChat
               projectId={id as string}

@@ -24,7 +24,7 @@ async function checkdb(title) {
     console.log("Checking for exact matches...");
     const exactQuery = query(
       collection(db, "submodules"),
-      where("name", "==", title)
+      where("processTitle", "==", title)
     );
     const exactQuerySnapshot = await getDocs(exactQuery);
     console.log("Exact matches found:", exactQuerySnapshot.size);
@@ -61,7 +61,7 @@ async function checkdb(title) {
 
       const similarQuery = query(
         collection(db, "submodules"),
-        where("name", "in", suggestedNames)
+        where("processTitle", "in", suggestedNames)
       );
       const similarQuerySnapshot = await getDocs(similarQuery);
 
