@@ -22,6 +22,7 @@ export default function GeneratePage() {
   const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     const fetchProject = async () => {
@@ -50,6 +51,7 @@ export default function GeneratePage() {
   const [final, setFinal] = useState<any>(null);
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsGenerating(true);
     try {
       const response = await axios.post("/api/refactor-text", {
         input: project?.description,
@@ -58,6 +60,8 @@ export default function GeneratePage() {
       setResult(response.data);
     } catch (error) {
       console.error("Error:", error);
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -116,14 +120,17 @@ export default function GeneratePage() {
   return (
     <div className="container mx-auto px-6 py-8 max-w-7xl">
       <h1 className="text-3xl font-bold mb-8 text-gray-800">
-        Generating Project: <span className="text-blue-600">{project.name}</span>
+        Generating Project:{" "}
+        <span className="text-blue-600">{project.name}</span>
       </h1>
 
       <div className="flex gap-8">
         {/* Left Column - Generation Section */}
-        <div className="flex-1 bg-white rounded-xl shadow-lg p-8 space-y-6 max-w-2xl">
+        <div className="flex-1 min-w-0 bg-white rounded-xl shadow-lg p-8 space-y-6">
           <div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Project Description</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-4">
+              Project Description
+            </h2>
             <textarea
               value={project.description}
               readOnly
@@ -134,20 +141,32 @@ export default function GeneratePage() {
           <div className="grid grid-cols-2 gap-6">
             <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
               <h2 className="text-lg font-bold text-gray-800 mb-2">Budget</h2>
-              <p className="text-2xl font-bold text-blue-600">${project.budget}</p>
+              <p className="text-2xl font-bold text-blue-600">
+                ${project.budget}
+              </p>
             </div>
             <div className="bg-blue-50 p-6 rounded-xl border border-blue-100">
               <h2 className="text-lg font-bold text-gray-800 mb-2">Duration</h2>
-              <p className="text-2xl font-bold text-blue-600">{project.duration} days</p>
+              <p className="text-2xl font-bold text-blue-600">
+                {project.duration} days
+              </p>
             </div>
           </div>
 
           <button
             onClick={handleSubmit}
+            disabled={isGenerating}
             className="w-full bg-blue-600 text-white px-6 py-4 rounded-xl hover:bg-blue-700 
-              transition-colors font-bold text-lg shadow-md hover:shadow-lg"
+              transition-colors font-bold text-lg shadow-md hover:shadow-lg disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
-            Generate Project Plan
+            {isGenerating ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Generating...
+              </div>
+            ) : (
+              "Generate Project Plan"
+            )}
           </button>
 
           {final && (
@@ -156,10 +175,44 @@ export default function GeneratePage() {
                 <h2 className="text-xl font-bold text-gray-800 mb-4">
                   Generated Project Data:
                 </h2>
-                <pre className="bg-gray-50 p-6 rounded-xl overflow-auto max-h-[400px] text-base 
-                  border border-gray-200 font-medium text-gray-700 custom-scrollbar">
-                  {JSON.stringify(final, null, 2)}
-                </pre>
+                <div className="bg-gray-50 p-6 rounded-xl border border-gray-200">
+                  {final.suggestions?.map((suggestion: any, index: number) => (
+                    <div
+                      key={index}
+                      className="mb-4 p-4 bg-white rounded-lg border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-gray-800 mb-1">
+                            {suggestion.moduleName.split(/(?=[A-Z])/).join(" ")}
+                          </h3>
+                          <h2 className="text-lg font-semibold text-gray-600">
+                            {suggestion.title.split(/(?=[A-Z])/).join(" ")}
+                          </h2>
+                        </div>
+                        <span
+                          className={`px-3 py-1 rounded-full text-xs font-medium flex-shrink-0 ml-4 ${
+                            suggestion.exists
+                              ? "bg-green-100 text-green-700"
+                              : "bg-orange-100 text-orange-700"
+                          }`}
+                        >
+                          {suggestion.exists ? "Previously Used" : "New Task"}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-sm mt-3">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
+                          <span className="text-gray-600">Duration:</span>
+                          <span className="font-medium text-gray-900">
+                            {suggestion.duration} hours
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <button
@@ -175,7 +228,7 @@ export default function GeneratePage() {
 
         {/* Right Column - Project Chat */}
         {final && (
-          <div className="flex-1 bg-white rounded-xl shadow-lg">
+          <div className="flex-1 min-w-0 bg-white rounded-xl shadow-lg">
             <ProjectChat
               projectId={id as string}
               suggestions={final}
