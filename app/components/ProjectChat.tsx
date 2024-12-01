@@ -1,8 +1,8 @@
-import { arrayUnion, doc, updateDoc } from "firebase/firestore";
+import { arrayUnion, doc, getDoc, updateDoc } from "firebase/firestore";
+import { useEffect, useState } from "react";
 
 import axios from "axios";
 import { db } from "@/firebase";
-import { useState } from "react";
 
 interface ProjectChatProps {
   projectId: string;
@@ -25,6 +25,19 @@ export default function ProjectChat({
   const [isLoading, setIsLoading] = useState(false);
   const [userInput, setUserInput] = useState("");
 
+  useEffect(() => {
+    // Load chat history when component mounts
+    const loadChatHistory = async () => {
+      const projectRef = doc(db, "projects", projectId);
+      const projectDoc = await getDoc(projectRef);
+      if (projectDoc.exists() && projectDoc.data().chatHistory) {
+        setChatHistory(projectDoc.data().chatHistory);
+      }
+    };
+
+    loadChatHistory();
+  }, [projectId]);
+
   const handleChatWithAI = async (message: string) => {
     setIsLoading(true);
     try {
@@ -39,22 +52,29 @@ export default function ProjectChat({
       });
 
       if (response.data) {
-        setChatHistory((prev) => [...prev, {
+        const newChat = {
           user: message,
           ai: response.data,
-        }]);
+          timestamp: new Date().toISOString(),
+        };
 
-        // Update project suggestions in Firebase - replace instead of union
+        setChatHistory((prev) => [...prev, newChat]);
+
+        // Update project suggestions and chat history in Firebase
         const projectRef = doc(db, "projects", projectId);
         await updateDoc(projectRef, {
           suggestions: response.data.updatedSuggestions,
+          chatHistory: arrayUnion(newChat),
         });
 
         // Update parent component with new suggestions
         onUpdateSuggestions(response.data.updatedSuggestions);
       }
     } catch (error) {
-      console.error("Error chatting with AI:", error instanceof Error ? error.message : 'Unknown error');
+      console.error(
+        "Error chatting with AI:",
+        error instanceof Error ? error.message : "Unknown error"
+      );
     } finally {
       setIsLoading(false);
       setUserInput("");
